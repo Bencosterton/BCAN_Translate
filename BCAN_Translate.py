@@ -1,39 +1,46 @@
-import speech_recognition as sr
+import whisper
+import pyaudio
+import wave
+import json
 from deep_translator import GoogleTranslator
 import threading
-import pyaudio
 from threading import Semaphore
 from queue import Queue
 import time
 import socket
 import subprocess
 
-def wait(amount):
-    time.sleep(amount)
-    print()
-
+# Set the language codes
 src_lang = "en"
 dest_lang = "fa"
 
 semaphore = Semaphore(1)
-
 translate_result = Queue()
 translator = GoogleTranslator(source=src_lang, target=dest_lang)
 
 NAME = socket.gethostname()
 T_IP = socket.gethostbyname(NAME)
 
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000 
+CHUNK = 1024
+
 # Welcome message
-print("""\
+print(f"""
  _  _  _       _                                        ______   ______        ______  
 | || || |     | |                          _           (____  \ / _____)  /\  |  ___ \ 
 | || || | ____| | ____ ___  ____   ____   | |_  ___     ____)  ) /       /  \ | |   | |
 | ||_|| |/ _  ) |/ ___) _ \|    \ / _  )  |  _)/ _ \   |  __  (| |      / /\ \| |   | |
 | |___| ( (/ /| ( (__| |_| | | | ( (/ /   | |_| |_| |  | |__)  ) \_____| |__| | |   | |
  \______|\____)_|\____)___/|_|_|_|\____)   \___)___/   |______/ \______)______|_|   |_| 
-  TRANSLATOR -""", NAME, T_IP,)
+  TRANSLATOR - {NAME} {T_IP} 
+""")
 
-# Input Audio
+# Load the Whisper model (replace 'base' with the model size you want to use)
+model = whisper.load_model("base")
+
+# Set up audio input
 Audio = pyaudio.PyAudio()
 info = Audio.get_host_api_info_by_index(0)
 numdevices = info.get('deviceCount')
@@ -47,7 +54,7 @@ Input = int(Au_Input)
 device_index = Input
 print('Ready to translate!')
 
-# Translation 
+# Function to handle translation
 def translate_text(text, translator, translate_result):
     try:
         result = translator.translate(text=text)
@@ -63,33 +70,48 @@ def play_audio_with_edge_playback(text):
     except subprocess.CalledProcessError as e:
         print(f"Error during playback: {e}")
 
-def listen_callback(recognizer, audio):
-    try:
-        text = recognizer.recognize_google(audio, language=src_lang)
-        translate_thread = threading.Thread(target=translate_text, args=(text, translator, translate_result))
-        translate_thread.start()
-        translate_thread.join()
-        result = translate_result.get()
-        print(f"Transcribed Text (English): {text}")
-        print(f"Translated Text (Persian): {result}")
-        play_audio_thread = threading.Thread(target=play_audio_with_edge_playback, args=(result,))
-        play_audio_thread.start()
-    except sr.UnknownValueError:
-        print("Waiting for clean dialogue")
-    except sr.RequestError as e:
-        print(f"Request error: {e}")
+def listen_and_transcribe():
+    stream = Audio.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=16000,
+                        input=True,
+                        input_device_index=device_index,
+                        frames_per_buffer=4096)
+    stream.start_stream()
 
-r = sr.Recognizer()
-mic = sr.Microphone()
+    while True:
+        frames = []
+        print("Recording...")
+        for i in range(0, int(RATE / CHUNK * 6)):  # 6 seconds of audio
+            data = stream.read(CHUNK, exception_on_overflow=False)
+            frames.append(data)
 
-while True:
+        # Save recorded audio to a temporary file for Whisper
+        wf = wave.open("temp.wav", 'wb')
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(Audio.get_sample_size(FORMAT))
+        wf.setframerate(RATE)
+        wf.writeframes(b''.join(frames))
+        wf.close()
+
+        # Transcribe the audio using Whisper
+        result = model.transcribe("temp.wav")
+        text = result['text']
+
+        if text:
+            translate_thread = threading.Thread(target=translate_text, args=(text, translator, translate_result))
+            translate_thread.start()
+            translate_thread.join()
+            translated_text = translate_result.get()
+            print(f"Transcribed Text (English): {text}")
+            print(f"Translated Text (Persian): {translated_text}")
+            play_audio_thread = threading.Thread(target=play_audio_with_edge_playback, args=(translated_text,))
+            play_audio_thread.start()
+
+if __name__ == "__main__":
     try:
-        with mic as source:
-            audio = r.listen(source, phrase_time_limit=6)
-        listen_callback(r, audio)
+        listen_and_transcribe()
     except KeyboardInterrupt:
         print("Exiting...")
-        break
     except Exception as e:
         print(f"Error: {e}")
-    time.sleep(0.1)
