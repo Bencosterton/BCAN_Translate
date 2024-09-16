@@ -1,5 +1,4 @@
 Microsoft Edge Text-to-Speach is used to playback the translated dialogue
 
-whisper
 edge-tts
 https://pypi.org/project/edge-tts/
