@@ -37,7 +37,7 @@ print(f"""
   TRANSLATOR - {NAME} {T_IP} 
 """)
 
-# Load the Whisper model (replace 'base' with the model size you want to use)
+# Load the Whisper model 
 model = whisper.load_model("base")
 
 # Set up audio input
