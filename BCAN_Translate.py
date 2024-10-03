@@ -9,6 +9,10 @@ from queue import Queue
 import time
 import socket
 import subprocess
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="whisper")
+warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead", category=UserWarning)
+
 
 # Set the language codes
 src_lang = "en"
@@ -37,7 +41,7 @@ print(f"""
   TRANSLATOR - {NAME} {T_IP} 
 """)
 
-# Load the Whisper model 
+# Load Whisper model (replace 'base' with the model size you want)
 model = whisper.load_model("base")
 
 # Set up audio input
@@ -53,6 +57,7 @@ Au_Input = input("Which input are we using?: ")
 Input = int(Au_Input)
 device_index = Input
 print('Ready to translate!')
+
 
 # Function to handle translation
 def translate_text(text, translator, translate_result):
@@ -71,32 +76,45 @@ def play_audio_with_edge_playback(text):
         print(f"Error during playback: {e}")
 
 def listen_and_transcribe():
-    stream = Audio.open(format=pyaudio.paInt16,
-                        channels=1,
-                        rate=16000,
-                        input=True,
-                        input_device_index=device_index,
-                        frames_per_buffer=4096)
+    # Set up the audio input stream
+    stream = pyaudio.PyAudio().open(format=pyaudio.paInt16,
+                                    channels=1,
+                                    rate=16000,
+                                    input=True,
+                                    frames_per_buffer=CHUNK)
     stream.start_stream()
 
     while True:
         frames = []
         print("Recording...")
-        for i in range(0, int(RATE / CHUNK * 6)):  # 6 seconds of audio
+        for _ in range(0, int(RATE / CHUNK * 6)):  # 6 seconds of audio
             data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
 
         # Save recorded audio to a temporary file for Whisper
-        wf = wave.open("temp.wav", 'wb')
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(Audio.get_sample_size(FORMAT))
-        wf.setframerate(RATE)
-        wf.writeframes(b''.join(frames))
-        wf.close()
+        with wave.open("temp.wav", 'wb') as wf:
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(pyaudio.PyAudio().get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(frames))
 
         # Transcribe the audio using Whisper
         result = model.transcribe("temp.wav")
         text = result['text']
+
+        ###################################
+        #   .-.
+        #  (o o) YouGhost
+        #  | O \
+        #   \   \
+        #    `~~~'
+        # Removing YouGhost from the script
+        ###################################
+
+        # Check if the transcribed text is exactly "you"
+        if text.lower().strip() == "you":
+            print("YouGhost detected, skipping translation")
+            continue  # Skip the translation process
 
         if text:
             translate_thread = threading.Thread(target=translate_text, args=(text, translator, translate_result))
