@@ -76,12 +76,12 @@ def play_audio_with_edge_playback(text):
         print(f"Error during playback: {e}")
 
 def listen_and_transcribe():
-    # Set up the audio input stream
-    stream = pyaudio.PyAudio().open(format=pyaudio.paInt16,
-                                    channels=1,
-                                    rate=16000,
-                                    input=True,
-                                    frames_per_buffer=CHUNK)
+    stream = Audio.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=16000,
+                        input=True,
+                        input_device_index=device_index,
+                        frames_per_buffer=4096)
     stream.start_stream()
 
     while True:
@@ -92,11 +92,12 @@ def listen_and_transcribe():
             frames.append(data)
 
         # Save recorded audio to a temporary file for Whisper
-        with wave.open("temp.wav", 'wb') as wf:
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(pyaudio.PyAudio().get_sample_size(FORMAT))
-            wf.setframerate(RATE)
-            wf.writeframes(b''.join(frames))
+        wf = wave.open("temp.wav", 'wb')
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(Audio.get_sample_size(FORMAT))
+        wf.setframerate(RATE)
+        wf.writeframes(b''.join(frames))
+        wf.close()
 
         # Transcribe the audio using Whisper
         result = model.transcribe("temp.wav")
