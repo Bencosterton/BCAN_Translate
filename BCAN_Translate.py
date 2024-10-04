@@ -41,7 +41,7 @@ print(f"""
   TRANSLATOR - {NAME} {T_IP} 
 """)
 
-# Load Whisper model (replace 'base' with the model size you want)
+# Load Whisper
 model = whisper.load_model("base")
 
 # Set up audio input
@@ -59,7 +59,7 @@ device_index = Input
 print('Ready to translate!')
 
 
-# Function to handle translation
+# The function that does the trabslating
 def translate_text(text, translator, translate_result):
     try:
         result = translator.translate(text=text)
@@ -91,7 +91,7 @@ def listen_and_transcribe():
             data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
 
-        # Save recorded audio to a temporary file for Whisper
+        # Save input audio to a temp file for Whisper
         wf = wave.open("temp.wav", 'wb')
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(Audio.get_sample_size(FORMAT))
