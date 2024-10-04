@@ -134,3 +134,6 @@ if __name__ == "__main__":
         print("Exiting...")
     except Exception as e:
         print(f"Error: {e}")
+
+# be kind - don't eat animals 
+# BCAN - ben costerton audio network 
