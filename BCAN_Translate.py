@@ -87,7 +87,7 @@ def listen_and_transcribe():
     while True:
         frames = []
         print("Recording...")
-        for _ in range(0, int(RATE / CHUNK * 6)):  # 6 seconds of audio
+        for _ in range(0, int(RATE / CHUNK * 6)):
             data = stream.read(CHUNK, exception_on_overflow=False)
             frames.append(data)
 
