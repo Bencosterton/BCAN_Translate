@@ -70,7 +70,7 @@ def translate_text(text, translator, translate_result):
 def play_audio_with_edge_playback(text):
     try:
         with semaphore:
-            command = ['edge-playback', '--voice', 'fa-IR-FaridNeural', '--text', text]
+            command = ['edge-playback', '--voice', 'fa-IR-FaridNeural', '--text', text, '--rate=+20%']
             subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error during playback: {e}")
